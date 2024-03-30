@@ -1,0 +1,863 @@
+PilotNet Architecture for City Environments
+Script for creating the layers for a deep learning network with the following properties:
+Run the script to create the layers in the workspace variable layers.
+
+LSTM PilotNet Layers
+% Load the Pretrained Parameters
+params = load("Weights_layers_lstm_RMSE0.07_2023_09_28.mat");
+
+% Create Layer Graph
+% Create the layer graph variable to contain the network layers.
+layers_lstm = layerGraph();
+
+% Add Layer Branches
+% Add the branches of the network to the layer graph. Each branch is a linear array of layers.
+tempLayers = [
+    sequenceInputLayer([55 200 3],"Name","sequence","MinLength",1)
+    sequenceFoldingLayer("Name","seqfold")];
+layers_lstm = addLayers(layers_lstm,tempLayers);
+
+tempLayers = [
+    batchNormalizationLayer("Name","batchnorm")
+    convolution2dLayer([5 5],24,"Name","conv2d_1","Padding","same","Stride",[2 2])
+    batchNormalizationLayer("Name","bn_1")
+    reluLayer("Name","relu_1")
+    convolution2dLayer([5 5],36,"Name","conv2d_2","Stride",[2 2])
+    batchNormalizationLayer("Name","bn_2")
+    reluLayer("Name","relu_2")
+    convolution2dLayer([5 5],48,"Name","conv2d_3","Stride",[2 2])
+    batchNormalizationLayer("Name","bn_3")
+    reluLayer("Name","relu_3")
+    convolution2dLayer([3 3],64,"Name","conv2d_4")
+    batchNormalizationLayer("Name","bn_4")
+    reluLayer("Name","relu_4")
+    convolution2dLayer([2 2],64,"Name","conv2d_5")
+    batchNormalizationLayer("Name","bn_5")
+    reluLayer("Name","relu_5")
+    globalAveragePooling2dLayer("Name","gap")
+    dropoutLayer(0.5,"Name","dropout")];
+layers_lstm = addLayers(layers_lstm,tempLayers);
+
+tempLayers = [
+    sequenceUnfoldingLayer("Name","sequnfold")
+    flattenLayer("Name","flatten")
+    lstmLayer(128,"Name","lstm")
+    fullyConnectedLayer(100,"Name","fc_1")
+    fullyConnectedLayer(50,"Name","fc_3")
+    fullyConnectedLayer(10,"Name","fc_2")
+    fullyConnectedLayer(1,"Name","fc_4")
+    regressionLayer("Name","regressionoutput")];
+layers_lstm = addLayers(layers_lstm,tempLayers);
+
+% clean up helper variable
+clear tempLayers;
+
+% Connect Layer Branches
+% Connect all the branches of the network to create the network graph.
+layers_lstm = connectLayers(layers_lstm,"seqfold/out","batchnorm");
+layers_lstm = connectLayers(layers_lstm,"seqfold/miniBatchSize","sequnfold/miniBatchSize");
+layers_lstm = connectLayers(layers_lstm,"dropout","sequnfold/in");
+
+
+Plot Layers
+%analyzeNetwork(layers_LSTM);
+plot(layers_lstm)
+
+Image Pre Processing and Folder Sub categorisation
+Load text datastore from steeringdatatrack1.mat 
+
+For image size of 200x55 
+% for idx = 1:6
+%     % 1. Reading the Video
+%     videoFile = sprintf('D:\\Akash\\All in one\\TrainingData_Path%d.avi', idx);
+%     vidObj = VideoReader(videoFile);
+% 
+%     % Video properties
+%     originalFrameRate = vidObj.FrameRate;
+%     desiredFrameRate = 20;
+%     frameInterval = round(originalFrameRate / desiredFrameRate);
+% 
+%     % Create a directory for the extracted frames
+%     outputDir = sprintf('Extracted_TrainingData_Track%d', idx);
+%     if ~exist(outputDir, 'dir')
+%         mkdir(outputDir);
+%     end
+% 
+%     frameCount = 0;
+% 
+%     % 2. Extracting Frames
+%     while hasFrame(vidObj)
+%         currentFrame = readFrame(vidObj);
+%         frameCount = frameCount + 1;
+% 
+%         % Extract frame if it matches the desired interval
+%         if mod(frameCount, frameInterval) == 0
+%             imwrite(currentFrame, fullfile(outputDir, sprintf('frame%d.jpg', frameCount)));
+%         end
+%     end
+% end
+% % 3. Creating an Image Datastore
+% extracted_imds = imageDatastore(outputDir);
+% 
+% % Displaying the total number of extracted frames
+% disp(['Total frames extracted: ', num2str(length(extracted_imds.Files))]);
+
+numTracks=6;
+allFiles={};
+allsteeringAngles=[];
+
+for i=1:numTracks
+    % Retrieve filenames and sort them
+    imageFiles = dir(['D:\Akash\All in one\Extracted_TrainingData_Track', num2str(i), '\*.jpg']); 
+    imageFilenames = {imageFiles.name};
+
+    % Extract numerical parts from filenames for sorting
+    numericalParts = cellfun(@(x) str2double(regexp(x, '\d+', 'match', 'once')), imageFilenames, 'UniformOutput', true);
+    [~, sortedIndices] = sort(numericalParts);
+    sortedImageFilenames = fullfile(imageFiles(1).folder, imageFilenames(sortedIndices));
+    
+    % Create the imageDatastore using the sorted filenames
+    imds = imageDatastore(sortedImageFilenames);
+    
+    % Load the steering data
+    load(['D:\Akash\All in one\TrainingData_path', num2str(i), '.mat']);
+    steeringAngles = data.Data;
+    imageNumber = floor(numel(steeringAngles) / numel(imds.Files));
+    alternateData = steeringAngles(1:imageNumber:end, 1);
+    
+    allsteeringAngles = [allsteeringAngles, {alternateData}];
+    allFiles = [allFiles, {imds.Files}];
+end
+
+combinedSteeringAngles = [];
+combinedFiles = {};
+
+for i = 1:length(allsteeringAngles)
+    %roundedAngles = round(allsteeringAngles{i} * 10) / 10; % Round to 1 decimal place
+    roundedAngles = round(allsteeringAngles{i}); % Round to 0 decimal place
+    combinedSteeringAngles = [combinedSteeringAngles; roundedAngles];
+    combinedFiles = [combinedFiles; allFiles{i}];
+    
+    % Truncate combinedSteeringAngles if its length exceeds that of combinedFiles
+    if length(combinedSteeringAngles) > length(combinedFiles)
+        combinedSteeringAngles = combinedSteeringAngles(1:length(combinedFiles));
+    end
+end
+
+% Define the batches
+batches1 = [23, 14; 4, -4; -12, -19];
+batches2 = [30, 23; 14, 4; -4, -12; -19, -30];
+
+desiredCounts = [7000, 3000];
+
+for batchIdx = 1:2
+    if batchIdx == 1
+        batches = batches1;
+        targetCount = desiredCounts(1);
+    else
+        batches = batches2;
+        targetCount = desiredCounts(2);
+    end
+
+    for i = 1:size(batches, 1)
+        lowerLimit = batches(i, 2);
+        upperLimit = batches(i, 1);
+
+        % Find indices in the batch
+        indicesInBatch = find(combinedSteeringAngles > lowerLimit & combinedSteeringAngles <= upperLimit);
+
+        numInBatch = length(indicesInBatch);
+        difference = targetCount - numInBatch;
+
+        if difference > 0  % Need to duplicate
+            % Calculate the number of full repetitions needed
+            numFullReps = floor(difference / numInBatch);
+            
+            % Duplicate full sets
+            for rep = 1:numFullReps
+                combinedSteeringAngles = [combinedSteeringAngles; combinedSteeringAngles(indicesInBatch)];
+                combinedFiles = [combinedFiles; combinedFiles(indicesInBatch)];
+            end
+
+            % Handle any remaining values to reach the desired count
+            remaining = difference - (numFullReps * numInBatch);
+            if remaining > 0
+                combinedSteeringAngles = [combinedSteeringAngles; combinedSteeringAngles(indicesInBatch(1:remaining))];
+                combinedFiles = [combinedFiles; combinedFiles(indicesInBatch(1:remaining))];
+            end
+
+        elseif difference < 0  % Need to delete
+            % Randomly select indices to delete
+            indicesToDelete = datasample(indicesInBatch, abs(difference), 'Replace', false);
+            
+            % Delete from combinedSteeringAngles
+            combinedSteeringAngles(indicesToDelete) = [];
+            
+            % Delete from combinedFiles as well
+            combinedFiles(indicesToDelete) = [];
+        end
+    end
+end
+
+roundedcombinedSteeringAngles=round(combinedSteeringAngles);
+uniqueValues=unique(roundedcombinedSteeringAngles);
+counts=histc(roundedcombinedSteeringAngles,uniqueValues);
+bar(uniqueValues,counts);
+xlabel('Integer Value');
+ylabel('Counts');
+title('Histogram of Integer Counts');
+
+Removing the class imabalance
+filelist=combinedFiles;
+imdsCleaned=imageDatastore(filelist);
+
+%representing in a histogram the new tables
+uniqueValuesCleaned=unique(round(combinedSteeringAngles));
+countsCleaned=histc(round(combinedSteeringAngles),uniqueValuesCleaned);
+bar(uniqueValuesCleaned,countsCleaned)
+
+Data normalization
+% previous use of rounded values is only for histogram presentation, for
+% normalisation the actual values shall be used
+minValue = min(combinedSteeringAngles);
+maxValue = max(combinedSteeringAngles);
+combinedSteeringAngles(combinedSteeringAngles> -0 & combinedSteeringAngles< 0)=0;
+% Normalize the steering values using Min-Max normalization
+normalizedSteeringValues = (combinedSteeringAngles - minValue) / (maxValue - minValue);
+%normalizedSteeringValues = (alternateData - minValue) / (maxValue - minValue);
+plot(combinedSteeringAngles)
+
+% Remove those values only for residual and conv, comment for lstm as you
+% want sequential data 
+%combinedSteeringAngles(indicesToRemove) = [];
+%filelist(indicesToRemove) = []; % assuming filelist is a cell array
+% Find indices with values greater than 35
+%indicesToRemove = find(combinedSteeringAngles > 30 | combinedSteeringAngles <-25);
+
+% Update the maxValue
+minValue = min(combinedSteeringAngles);
+maxValue = max(combinedSteeringAngles);
+
+% Normalize the steering values using the updated Min-Max normalization
+normalizedSteeringValues = (combinedSteeringAngles - minValue) / (maxValue - minValue);
+plot(combinedSteeringAngles)
+uniqueValuesCleaned=unique(combinedSteeringAngles);
+countsCleaned=histc(combinedSteeringAngles,uniqueValuesCleaned);
+bar(uniqueValuesCleaned,countsCleaned)
+
+Labeling images and cleaning data
+imdsCleaned=imageDatastore(filelist);
+imdsCleaned.Labels=normalizedSteeringValues;
+%imdsCleaned.Labels=combinedSteeringAngles;
+
+%plot(normalizedSteeringValues)
+plot(roundedcombinedSteeringAngles)
+
+steeringDatastore = arrayDatastore(normalizedSteeringValues, 'ReadSize', 1);
+combinedDS = combine(imdsCleaned, steeringDatastore);
+
+Loading the test track (already saved)
+
+% %writing the video for test track to folder file
+%     % 1. Reading the Video
+%     videoFile = sprintf('D:\\Akash\\All in one\\TestingTrack2.avi');
+%     vidObj = VideoReader(videoFile);
+% 
+%     % Video properties
+%     originalFrameRate = vidObj.FrameRate;
+%     desiredFrameRate = 10;
+%     frameInterval = round(originalFrameRate / desiredFrameRate);
+% 
+%     % Create a directory for the extracted frames
+%     outputDir = sprintf('TestingTrack2');
+%     if ~exist(outputDir, 'dir')
+%         mkdir(outputDir);
+%     end
+% 
+%     frameCount = 0;
+% 
+%     % 2. Extracting Frames
+%     while hasFrame(vidObj)
+%         currentFrame = readFrame(vidObj);
+%         frameCount = frameCount + 1;
+% 
+%         % Extract frame if it matches the desired interval
+%         if mod(frameCount, frameInterval) == 0
+%             imwrite(currentFrame, fullfile(outputDir, sprintf('frame%d.jpg', frameCount)));
+%         end
+%     end
+% 
+
+Performing Data Augmentation and Defining Training Options 
+%https://www.mathworks.com/matlabcentral/answers/464035-error-using-trainnetwork-line-165-invalid-training-data-imagedatastore-not-supported-for-regressi
+% Define the image files as cell arrays
+filename = imdsCleaned.Files;
+% Define the target values
+value = imdsCleaned.Labels;
+% Create a table data
+tbl = table(filename, value);
+
+% % Handle steering reflection and image flipping
+% shouldFlip = rand(size(tbl.filename, 1), 1) > 0.8;
+% 
+% for i = 1:length(shouldFlip)
+%     if shouldFlip(i)
+%         img = imread(tbl.filename{i});
+%         img = flip(img, 2);  % Horizontal flip
+%         imwrite(img, tbl.filename{i});  % Overwrite the image
+%         tbl.value(i) = -tbl.value(i);  % Negate the corresponding steering angle
+%     end
+% end
+% 
+% % Convert the table to an imageDatastore and arrayDatastore
+ imds2 = imageDatastore(tbl.filename);
+
+% Image size assuming a common size for all images. Modify as needed.
+imageSize = [200,55, 3];
+
+% Data Augmentation
+% imageAugmenter = imageDataAugmenter( ...
+%     'RandRotation', [-2,2], ...
+%     'RandXTranslation', [-2 2], ...
+%     'RandYTranslation', [-5 5]);
+
+% augimds = augmentedImageDatastore(imageSize, imds2, 'DataAugmentation', imageAugmenter);
+
+% Randomly select an image from the imds for demonstration
+%randomIdx = randi(size(imds2.Files, 1));
+zeroIndices = find(tbl.value == 0);  % Find all indices where the value is 0
+randomIdx = zeroIndices(randi(length(zeroIndices), 1));  % Choose a random index from those found
+
+imgOriginal = imread(imds2.Files{randomIdx});
+
+% Define custom augmenter functions
+translateAugmenter = @(img) imtranslate(img, [5, 0]);  % Translate 5 pixels to the right
+rotateAugmenter = @(img) imrotate(img, -5, 'bicubic', 'crop');  % Rotate 5 degrees to the right (clockwise)
+
+% Apply augmentation
+imgTranslated = translateAugmenter(imgOriginal);
+imgRotated = rotateAugmenter(imgOriginal);
+
+% Display the images
+figure;
+
+subplot(1, 3, 1);
+imshow(imgOriginal);
+title('Original Image');
+
+subplot(1, 3, 2);
+imshow(imgTranslated);
+title('Translated Image');
+
+subplot(1, 3, 3);
+imshow(imgRotated);
+title('Rotated Image');
+
+%augimds = augmentedImageDatastore([227,227, 3],tbl,'DataAugmentation',imageAugmenter);
+%augimds = augmentedImageDatastore([200,55 3],tbl);
+%[trainingSet, validationSet] = splitEachLabel(augimds, 0.8, 'randomize');
+%options 
+%trainingSetup = load("D:\Akash\All in one\params_2023_08_21__19_04_29.mat");
+%dsTrain = trainingSetup.dsTrain;
+%dsValidation = trainingSetup.dsValidation;
+%"ValidationData",dsValidation
+% "LearnRateDropFactor",2,...
+%     "LearnRateDropPeriod",1000,...
+%     "LearnRateSchedule",'piecewise',...
+
+
+% numTotalSamples = size(tbl, 1);
+% numTrainSamples = floor(0.8 * numTotalSamples);
+% trainIndices = randperm(numTotalSamples, numTrainSamples);
+% valIndices = setdiff(1:numTotalSamples, trainIndices);
+% trainTbl = tbl(trainIndices, :);
+% valTbl = tbl(valIndices, :);
+% trainImds = imageDatastore(trainTbl.filename);
+% valImds = imageDatastore(valTbl.filename);
+% trainSteering = arrayDatastore(trainTbl.value);
+% valSteering = arrayDatastore(valTbl.value);
+% combinedTrainDS= combine(trainImds, trainSteering);
+% combinedValDS = combine(valImds, valSteering);
+options = trainingOptions("adam",...
+    "CheckpointPath", "D:\Akash\All in one\checkpointspath",...
+    "ExecutionEnvironment", "auto",...
+    "InitialLearnRate", 3e-4,...
+    "MaxEpochs", 15,...
+    "MiniBatchSize", 64,...
+    "OutputNetwork", "best-validation-loss",...
+    "Shuffle", "every-epoch",...
+    "Plots", "training-progress",...
+    "ValidationData", combinedDS, ...
+    "ValidationFrequency", 1000);
+
+Printing the image and steering value angle from a image datastore
+
+%load('AllTracksweights1RMSE2.8602.mat');
+% Load the pre-trained network
+loadedStruct = load('AllTracksweights1RMSE0.17_2023_09_27.mat');
+netPretrained = loadedStruct.net;
+% Extract layers from the pre-trained network
+layersPretrained = netPretrained.Layers;
+
+% Train network for CNN regression problem
+%[net, trainingInfo] = trainNetwork(combinedDS, layersPretrained, options);
+[net, trainingInfo] = trainNetwork(combinedDS, layers_lstm, options);
+%[net, trainingInfo] = trainNetwork(combinedDS, lgraph, options);
+%[net, trainingInfo] = trainNetwork(augimds, lgraph, options);
+%[net, trainingInfo] = trainNetwork(combinedDS, lgraph, options);
+%% Continue training using the extracted layers
+%[net, trainingInfo] = trainNetwork(combinedTrainDS, netPretrained.Layers, options);
+%[net, trainingInfo] = trainNetwork(combinedTrainDS, layerGraph(netPretrained), options);
+%[net, trainingInfo] = trainNetwork(combinedValDS, layerGraph(netPretrained), options);
+%[net, trainingInfo] = trainNetwork(combinedDS, layers_lstm, options);
+validationRMSE = trainingInfo.ValidationRMSE;
+finalValidationRMSE = validationRMSE(end);
+% Hardcoded layer name
+layersVarName = 'layers_lstm'; 
+saveFileName = sprintf('Weights_%s_RMSE%.2f_%s.mat', layersVarName, finalValidationRMSE, datestr(now,'yyyy_mm_dd'));
+save(saveFileName, 'net');
+%net = trainNetwork(combinedDS, layers, options);
+
+% Assuming you've already done:
+% net = trainNetwork(trainingData, layers, options);
+% options2 = trainingOptions("adam",...
+%     "CheckpointPath","D:\Akash\All in one\checkpointspath",...
+%     "ExecutionEnvironment","auto",...
+%     "InitialLearnRate",3e-04,...
+%     "L2Regularization",1.0000e-04,...
+%     "GradientThresholdMethod",'l2norm',...
+%     "LearnRateDropFactor",.5,...
+%     "LearnRateDropPeriod",1000,...
+%     "LearnRateSchedule",'piecewise',...
+%     "MaxEpochs",20,...
+%     "MiniBatchSize",64,...
+%     "OutputNetwork","best-validation-loss",...
+%     "Shuffle","every-epoch",...
+%     "Plots","training-progress",...
+%     "ValidationData",augimds);
+% %[netContinued, trainingInfo] = trainNetwork(augimds, layerGraph(net), options2);
+% validationRMSE = trainingInfo.ValidationRMSE;
+% finalValidationRMSE = validationRMSE(end);
+% saveFileName = sprintf('AllTracksweights1RMSE%.2f_%s.mat', finalValidationRMSE,layersVarName, datestr(now,'yyyy_mm_dd'));
+% save(saveFileName, 'netContinued');
+% %Continue training:
+% netContinued2=trainNetwork(augimds, netContinued.netContinued.Layers, options2);
+% save('AllTracksweights2Continued.mat', 'netContinued2');
+
+Test Track and Simulation
+
+%Uncomment only when new track is used
+
+% % saving and loading the actual test steering value from steering wheel for
+% % comparison with deep learning
+% % Extracting data and time from simulation
+%  dataToSave = out.logsout{3}.Values.Data(:,1);
+% timeToSave = out.logsout{3}.Values.Time;
+% 
+% % Saving to .mat file
+% save('TestSteeringActual2.mat', 'dataToSave', 'timeToSave');
+% % saving and loading the actual test steering value from steering wheel for
+% % comparison with deep learning
+% % Extracting data and time from simulation
+% dataToSave2 = out.logsout{3}.Values.Data(:,1);
+% timeToSave2 = out.logsout{3}.Values.Time;
+% 
+% % Saving to .mat file
+% save('TestSteeringActual2.mat', 'dataToSave2', 'timeToSave2');
+
+Loading the already saved test track
+% one major problem encountered was alphanumeric values getting asigned
+% instead of numeric
+% Load the MAT file and calculate totalSimulationTime and imageNumber2
+load ('TestSteeringActual.mat')
+totalSimulationTime = timeToSave(end);
+imageFiles = dir("D:\Akash\All in one\TestingTrack1\*.jpg");
+
+if isempty(imageFiles)
+    error('No PNG files found in the specified directory.');
+end
+
+imageFilenames = {imageFiles.name};
+imageFiles = dir("D:\Akash\All in one\TestingTrack1\*.jpg");
+
+% Sort based on numeric values
+% Extract numerical parts of filenames
+numericalParts = cellfun(@(x) str2double(regexp(x, '\d+', 'match', 'once')), imageFilenames, 'UniformOutput', true);
+
+% Sort based on the numerical parts
+[~, sortedIndices] = sort(numericalParts);
+
+% Get the sorted filenames
+sortedImageFilenames = fullfile(imageFiles(1).folder, imageFilenames(sortedIndices));
+
+% Create the imageDatastore with the sorted file list
+imdsTest = imageDatastore(sortedImageFilenames);
+
+imageNumber2 = floor(numel(timeToSave) / numel(imdsTest.Files));
+combinedTestSteeringAngles = dataToSave(1:imageNumber2:end);
+desiredLength = length(imdsTest.Files);
+numToRemove = length(combinedTestSteeringAngles) - desiredLength;
+
+if numToRemove > 0  % Ensure we only remove if there are excess elements
+    combinedTestSteeringAngles(end-numToRemove+1:end) = [];
+end
+
+steeringTestDatastore = arrayDatastore(combinedTestSteeringAngles);
+combinedTestDS = combine(imdsTest, steeringTestDatastore);  % Fix the datastore name
+
+% Predicting the values for the test set using the trained network
+
+%predicting data for lstm files
+numSequences = length(imdsTest.Files);  % Assuming each file is a sequence
+YPred = zeros(numSequences, 1); % Or whatever the output size should be
+net=load("Weights_layers_lstm_RMSE0.07_2023_09_28.mat");
+for idx = 1:numSequences
+    % Read the sequence
+    sequenceData = read(imdsTest);
+    sequenceData = permute(sequenceData, [2 1 3]); % Transpose the image
+    % Predict
+    YPred(idx) = predict(net.net, sequenceData);
+    %YPred(idx) = predict(net, sequenceData);
+end
+only for residual and convolutional pilotnet
+%netContinued=load("AllTracksweights1RMSE2.8602.mat");
+%netContinued=load("AllTracksweights1.mat")
+% netContinued=load("AllTracksweights1Continued.mat")
+% netContinued=load("AllTracksweights2RMSE4.6.mat")
+%net=load("AllTracksweights1RMSE0.05_2023_09_26.mat");
+%YPred = predict(trainedNetwork_1,imdsTest);
+%YPred = predict(net,imdsTest);
+
+denormalizedSteeringValues = (YPred * (maxValue - minValue)) + minValue;
+Using Data to plot Actual Steering V/s Predicted Steering
+numSteps = length(imdsTest.Files);
+sampleTime = totalSimulationTime/numSteps;
+time = sampleTime*(0:numSteps-1);
+time2 = sampleTime*(0:numSteps-2);
+time = time';
+%Engine_power=timeseries(Engine_powerdata,time);
+%YPredSeries=timeseries(double(YPred),time);
+%YPredSeries=timeseries(double(denormalizedSteeringValues),time);
+
+totaltime=time(end);
+totaltime2=time2(end);
+%plotting actual steering values for test track
+%plot(timeToSave,dataToSave);
+%[fitresult, gof] = createFit(time, YPred)
+[fitresult,gof,excludedIndices] = createFit_lstm(time, denormalizedSteeringValues)
+%[fitresult, gof,excludedIndices] = createFit(time, denormalizedSteeringValues)
+p1=fitresult.p;
+YPredSmoothed=(p1.coefs(:,4));
+YPredSmoothed = YPredSmoothed - 5;
+YPredSmoothed(YPredSmoothed>-3 & YPredSmoothed<3)=0;
+
+
+superimposing two graphs actual vs predicted steering angle
+% loading the actual steering angle from the steering wheel sensors
+% teststeeringActual=dataToSave(:,1);
+% plot(timeToSave,dataToSave);
+% plot(time2,YPredSmoothed);
+time2(excludedIndices) = [];
+
+figure;
+% Plot the first graph
+h1 = subplot(1, 1, 1);
+plot(h1, timeToSave, dataToSave, 'b');
+set(h1, 'Position', [0.13 0.11 0.775 0.815]);  % Cover the entire subplot area
+
+%Hold the figure to superimpose the second graph
+hold on;
+% Plot the second graph with a transparent axis
+h2 = subplot(1, 1, 1);
+plot(h2, time2, YPredSmoothed, 'r');
+%set(h2, 'Position', [0.13 0.11 0.775 0.815]);  % Cover the entire subplot area
+set(h2, 'Color', 'none');  % Make the background transparent
+hold off
+
+% Interpolate the dataToSave values to the time2 values
+interpolatedData = interp1(timeToSave, dataToSave, time2);
+
+% Now you can plot both datasets on the same graph
+figure;
+plot(timeToSave, dataToSave, 'b');  % Original data in blue
+hold on;
+plot(time2, YPredSmoothed, 'r');    % Predicted data in red
+plot(time2, interpolatedData, 'g'); % Interpolated actual data in green
+legend('Original Data', 'Predicted Data', 'Interpolated Actual Data');
+xlabel('Time');
+ylabel('Steering Angle');
+hold off;
+
+% If you want to create a time series with the interpolated data
+YPredSeries = timeseries(interpolatedData, time2);
+
+
+layersVarName='layers_lstm';
+saveFileName = sprintf('YPredSmoothed%.2f_%s.mat', finalValidationRMSE, layersVarName);
+
+save(saveFileName, 'YPredSmoothed');
+
+
+
+%plot(YPredSmoothed)
+% Determine the minimum length between the two vectors
+minLength = min(length(time2), length(YPredSmoothed));
+% Trim both vectors to this minimum length
+time2 = time2(1:minLength);
+YPredSmoothed = YPredSmoothed(1:minLength);
+plot(time2,YPredSmoothed)
+
+% Define threshold
+threshold = 2;  % or whatever value you want
+
+% Compute the difference between each value and its previous value
+diffValues = abs(diff([0; YPredSmoothed]));  % added a 0 at the beginning for correct size
+
+% Find indices where the difference exceeds the threshold
+toRemove = diffValues > threshold;
+
+% Remove these indices from YPredSmoothed and time2
+YPredSmoothed(toRemove) = [];
+time2(toRemove) = [];
+
+% Create the filtered time series
+YPredSeries = timeseries(double(YPredSmoothed), time2);
+
+% Plot the filtered time series
+figure;
+plot(YPredSeries);
+title('Filtered Time Series');
+xlabel('Time');
+ylabel('YPredSmoothed Value');
+
+YPredSeries=timeseries(double(YPredSmoothed),time2);
+YPredSmoothed(end+1:end+2)=[0,0];
+% to calculate accuracy based on matching values
+%imdsTest.Labels=YPredSmoothed;
+YTest = imdsTest.Labels;
+%accuracy = sum((round(YPred) == YTest)|(round(YPred)-1 == YTest)|(round(YPred)+1 == YTest))/numel(YTest)
+
+%plot(YPredSmoothed)
+% Determine the minimum length between the two vectors
+% Trim both vectors to this minimum length
+YPredSeries2=load('YPredSeries0.05_Conv.mat');
+YPredSeries=timeseries(double(YPredSeries2.YPredSeries.data),YPredSeries2.YPredSeries.time);
+%plot(YPredSeries2.YPredSeries.time,YPredSeries2.YPredSeries.data)
+
+%save("YPredSeries0.0_Conv.mat",'YPredSeries');
+
+
+
+Loading the already saved test track 2
+%converting data from radians to degrees for uniformity
+%dataToSave=dataToSave*pi/180;
+load ('TestSteeringActual2.mat')
+totalSimulationTime=timeToSave2(end);
+
+% Get all image filenames in the directory
+imageFiles = dir("D:\Akash\All in one\TestingTrack2\*.jpg");
+imageFilenames = {imageFiles.name};
+
+% Extract numerical parts of filenames and sort based on these values
+numericalParts = cellfun(@(x) str2double(regexp(x, '\d+', 'match', 'once')), imageFilenames, 'UniformOutput', true);
+[~, sortedIndices] = sort(numericalParts);
+sortedImageFilenames = fullfile(imageFiles(1).folder, imageFilenames(sortedIndices));
+
+% Create the imageDatastore with the sorted file list
+imdsTest = imageDatastore(sortedImageFilenames);
+
+% Process steering angles to match the number of images
+imageNumber = floor(numel(timeToSave) / numel(imdsTest2.Files));
+combinedSteeringAngles = dataToSave(1:imageNumber:end);
+desiredLength = length(imdsTest2.Files);
+numToRemove = length(combinedSteeringAngles) - desiredLength;
+
+if numToRemove > 0
+    combinedSteeringAngles(end-numToRemove+1:end) = [];
+end
+
+% Create datastores and combine
+steeringDatastore = arrayDatastore(combinedSteeringAngles);
+combinedDS = combine(imdsTest2, steeringDatastore);
+
+Predicting the values for the test set using the trained network
+%netContinued=load("AllTracksweights1RMSE2.8602.mat");
+%netContinued=load("AllTracksweights1.mat")
+% netContinued=load("AllTracksweights1Continued.mat")
+% netContinued=load("AllTracksweights2RMSE4.6.mat")
+%net=load("AllTracksweights1RMSE0.05_2023_09_26.mat");
+%predicting data for lstm files
+numSequences = length(imdsTest2.Files);  % Assuming each file is a sequence
+YPred = zeros(numSequences, 1); % Or whatever the output size should be
+
+for idx = 1:numSequences
+    % Read the sequence
+    sequenceData = readimage(imdsTest2,idx);
+    sequenceData = permute(sequenceData, [2 1 3]); % Transpose the image
+    % Predict
+    YPred(idx) = predict(net.net, sequenceData);
+end
+%YPred = predict(trainedNetwork_1,imdsTest);
+%YPred = predict(net,imdsTest2);
+denormalizedSteeringValues = (YPred * (maxValue - minValue)) + minValue;
+Using Data to plot Actual Steering V/s Predicted Steering
+numSteps = length(imdsTest2.Files);
+sampleTime = totalSimulationTime/numSteps;
+time = sampleTime*(0:numSteps-1);
+time2 = sampleTime*(0:numSteps-2);
+time = time';
+%Engine_power=timeseries(Engine_powerdata,time);
+%YPredSeries=timeseries(double(YPred),time);
+YPredSeries=timeseries(double(denormalizedSteeringValues),time);
+
+totaltime=time(end);
+totaltime2=time2(end);
+%plotting actual steering values for test track
+%plot(timeToSave,dataToSave);
+%[fitresult, gof] = createFit(time, YPred)
+[fitresult, gof] = createFit(time, denormalizedSteeringValues)
+
+p1=fitresult.p;
+%plot(p1.coefs);
+YPredSmoothed=(p1.coefs(:,4));
+%YPredSmoothed=sgolayfilt(YPredSmoothed,1,31);
+threshold=9.5;
+YPredSmoothed(YPredSmoothed>-0 & YPredSmoothed<0)=0;
+%plot(YPredSmoothed)
+superimposing two graphs actual vs predicted steering angle
+%loading the actual steering angle from the steering wheel sensors
+%teststeeringActual=dataToSave(:,1);
+%plot(timeToSave,dataToSave);
+%plot(time2,YPredSmoothed);
+
+figure;
+
+% Plot the first graph
+h1 = subplot(1, 1, 1);
+plot(h1, timeToSave2, dataToSave2, 'b');
+%set(h1, 'Position', [0.13 0.11 0.775 0.815]);  % Cover the entire subplot area
+
+% Hold the figure to superimpose the second graph
+hold on;
+
+% Plot the second graph with a transparent axis
+h2 = subplot(1, 1, 1);
+plot(h2, time2, YPredSmoothed, 'r');
+%set(h2, 'Position', [0.13 0.11 0.775 0.815]);  % Cover the entire subplot area
+set(h2, 'Color', 'none');  % Make the background transparent
+hold off
+
+YPredSeries=timeseries(double(YPredSmoothed),time2);
+YPredSmoothed(end+1:end+2)=[0,0];
+% to calculate accuracy based on matching values
+imdsTest2.Labels=YPredSmoothed;
+YTest = imdsTest2.Labels;
+%accuracy = sum((round(YPred) == YTest)|(round(YPred)-1 == YTest)|(round(YPred)+1 == YTest))/numel(YTest)
+
+test track for highways
+
+% one major problem encountered was alphanumeric values getting asigned
+% instead of numeric
+% Load the MAT file and calculate totalSimulationTime and imageNumber2
+load ('TestSteeringActual.mat')
+totalSimulationTime = timeToSave(end);
+imageFiles = dir("D:\Akash\All in one\TestingTrackHighway\*.jpg");
+
+if isempty(imageFiles)
+    error('No PNG files found in the specified directory.');
+end
+
+imageFilenames = {imageFiles.name};
+imageFiles = dir("D:\Akash\All in one\TestingTrackHighway\*.jpg");
+
+% Sort based on numeric values
+% Extract numerical parts of filenames
+numericalParts = cellfun(@(x) str2double(regexp(x, '\d+', 'match', 'once')), imageFilenames, 'UniformOutput', true);
+
+% Sort based on the numerical parts
+[~, sortedIndices] = sort(numericalParts);
+
+% Get the sorted filenames
+sortedImageFilenames = fullfile(imageFiles(1).folder, imageFilenames(sortedIndices));
+
+% Create the imageDatastore with the sorted file list
+imdsTest = imageDatastore(sortedImageFilenames);
+
+imageNumber2 = floor(numel(timeToSave) / numel(imdsTest.Files));
+combinedTestSteeringAngles = dataToSave(1:imageNumber2:end);
+desiredLength = length(imdsTest.Files);
+numToRemove = length(combinedTestSteeringAngles) - desiredLength;
+
+if numToRemove > 0  % Ensure we only remove if there are excess elements
+    combinedTestSteeringAngles(end-numToRemove+1:end) = [];
+end
+
+steeringTestDatastore = arrayDatastore(combinedTestSteeringAngles);
+combinedTestDS = combine(imdsTest, steeringTestDatastore);  % Fix the datastore name
+
+% Predicting the values for the test set using the trained network
+
+%predicting data for lstm files
+numSequences = length(imdsTest.Files);  % Assuming each file is a sequence
+YPred = zeros(numSequences, 1); % Or whatever the output size should be
+net=load("Weights_layers_lstm_RMSE0.07_2023_09_28.mat");
+for idx = 1:numSequences
+    % Read the sequence
+    sequenceData = read(imdsTest);
+    sequenceData = permute(sequenceData, [2 1 3]); % Transpose the image
+    % Predict
+    YPred(idx) = predict(net.net, sequenceData);
+    %YPred(idx) = predict(net, sequenceData);
+end
+only for residual and convolutional pilotnet
+%netContinued=load("AllTracksweights1RMSE2.8602.mat");
+%netContinued=load("AllTracksweights1.mat")
+% netContinued=load("AllTracksweights1Continued.mat")
+% netContinued=load("AllTracksweights2RMSE4.6.mat")
+%net=load("AllTracksweights1RMSE0.05_2023_09_26.mat");
+%YPred = predict(trainedNetwork_1,imdsTest);
+%YPred = predict(net,imdsTest);
+
+
+denormalizedSteeringValues = (YPred * (maxValue - minValue)) + minValue;
+Using Data to plot Actual Steering V/s Predicted Steering
+numSteps = length(imdsTest.Files);
+sampleTime = totalSimulationTime/numSteps;
+time = sampleTime*(0:numSteps-1);
+time2 = sampleTime*(0:numSteps-2);
+time = time';
+%Engine_power=timeseries(Engine_powerdata,time);
+%YPredSeries=timeseries(double(YPred),time);
+%YPredSeries=timeseries(double(denormalizedSteeringValues),time);
+
+totaltime=time(end);
+totaltime2=time2(end);
+%plotting actual steering values for test track
+%plot(timeToSave,dataToSave);
+%[fitresult, gof] = createFit(time, YPred)
+[fitresult,gof,excludedIndices] = createFit_lstm(time, denormalizedSteeringValues)
+
+% Define threshold
+threshold = 2;  % or whatever value you want
+
+% Compute the difference between each value and its previous value
+diffValues = abs(diff([0; YPredSmoothed]));  % added a 0 at the beginning for correct size
+
+% Find indices where the difference exceeds the threshold
+toRemove = diffValues > threshold;
+
+% Remove these indices from YPredSmoothed and time2
+YPredSmoothed(toRemove) = [];
+time2(toRemove) = [];
+
+% Create the filtered time series
+YPredSeries = timeseries(double(YPredSmoothed), time2);
+
+% Plot the filtered time series
+figure;
+plot(YPredSeries);
+title('Filtered Time Series');
+xlabel('Time');
+ylabel('YPredSmoothed Value');
+
+YPredSeries=timeseries(double(YPredSmoothed),time2);
