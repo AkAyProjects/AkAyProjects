@@ -1,5 +1,6 @@
 ### Hi there 👋
-
+I am Akash Ayyagari, I am passionate about mechatronics, machine learning, AI and industrial automation. 
+I have attached the results of my Thesis of my masters from Simon Fraser University, Mechatronics Systems Engineering.
 <!--
 **AkashAyyagari/AkashAyyagari** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
