@@ -1,5 +1,5 @@
-### Hi there 👋
-I am Akash Ayyagari, I am passionate about mechatronics, machine learning, AI and industrial automation.
+👋 Hi there!
+I'm Akash Ayyagari — a passionate engineer with a strong background in mechatronics, machine learning, AI, and industrial automation. I enjoy building intelligent systems that bridge the gap between hardware and software, especially in robotics and smart manufacturing.
 <!--
 **AkashAyyagari/AkashAyyagari** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
