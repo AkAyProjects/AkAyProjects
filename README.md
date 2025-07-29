@@ -7,11 +7,9 @@ I'm Akash Ayyagari — a passionate engineer with a strong background in mechatr
 ![Python](https://img.shields.io/badge/-Python-3776AB?style=flat&logo=python&logoColor=white)
 ![C++](https://img.shields.io/badge/-C++-00599C?style=flat&logo=c%2b%2b&logoColor=white)
 ![MATLAB](https://img.shields.io/badge/-MATLAB-0076A8?style=flat&logo=mathworks&logoColor=white)
-
-
+ 
 **🛠️ CAD/Modeling Software:**  
-**🛠️ CAD/Modeling Software:**  
-![SolidWorks](https://img.shields.io/badge/-SolidWorks-E22127?style=flat&logo=solidworks&logoColor=white) ![AutoCAD](https://img.shields.io/badge/-AutoCAD-E60000?style=flat&logo=autodesk&logoColor=white) ![ANSYS](https://img.shields.io/badge/-ANSYS-FFB71B?style=flat&logo=ansys&logoColor=black) ![ADAMS](https://img.shields.io/badge/-ADAMS-000000?style=flat&logoColor=white&label=ADAMS)
+![SolidWorks](https://img.shields.io/badge/-SolidWorks-E22127?style=flat&logo=solidworks&logoColor=white) ![AutoCAD](https://img.shields.io/badge/-AutoCAD-E60000?style=flat&logo=autodesk&logoColor=white) ![ANSYS](https://img.shields.io/badge/-ANSYS-FFB71B?style=flat&logo=ansys&logoColor=black) 
 
 
 **Robotics & Embedded:**  
