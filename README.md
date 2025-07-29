@@ -6,14 +6,16 @@ I'm Akash Ayyagari — a passionate engineer with a strong background in mechatr
 **Languages & Scripting:**  
 ![Python](https://img.shields.io/badge/-Python-3776AB?style=flat&logo=python&logoColor=white)
 ![C++](https://img.shields.io/badge/-C++-00599C?style=flat&logo=c%2b%2b&logoColor=white)
-![MATLAB](https://img.shields.io/badge/-MATLAB-00599C?style=flat&logo=c%2b%2b&logoColor=white)
+![MATLAB](https://img.shields.io/badge/-MATLAB-0076A8?style=flat&logo=mathworks&logoColor=white)
 
-**CAD/Modelling Software:**
-![SolidWorks](https://img.shields.io/badge/-SolidWorks-3776AB?style=flat&logo=SolidWorks&logoColor=white)
-![AutoCad](https://img.shields.io/badge/-AutoCad-3776AB?style=flat&logo=AutoCad&logoColor=white)
-![Ansys](https://img.shields.io/badge/-Ansys-3776AB?style=flat&logo=Ansys&logoColor=white)
-![ADAMS](https://img.shields.io/badge/-ADAMS-3776AB?style=flat&logo=ADAMS&logoColor=white)
-SolidWorks, Ansys, ADAMS, AutoCad.
+
+**🛠️ CAD/Modeling Software:**  
+![SolidWorks](https://img.shields.io/badge/-SolidWorks-E22127?style=flat&logo=solidworks&logoColor=white)  
+![AutoCAD](https://img.shields.io/badge/-AutoCAD-E60000?style=flat&logo=autodesk&logoColor=white)  
+![ANSYS](https://img.shields.io/badge/-ANSYS-FFB71B?style=flat&logo=ansys&logoColor=black)  
+![ADAMS](https://img.shields.io/badge/-ADAMS-000000?style=flat&logoColor=white&label=ADAMS)
+
+
 
 **Robotics & Embedded:**  
 ![ROS](https://img.shields.io/badge/-ROS-22314E?style=flat&logo=ros&logoColor=white)
