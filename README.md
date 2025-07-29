@@ -33,7 +33,7 @@
 
 ### 📂 Featured Repositories
 
-🔧 [`DesignSolutions-Portfolio`](https://github.com/AkashAyyagari/DesignSolutions-Portfolio)  
+🔧 [`DesignSolutions-Portfolio`]([https://github.com/AkashAyyagari/DesignSolutions-Portfolio](https://github.com/AkAyProjects/DesignSolutions-Portfolio))  
 A collection of professional CAD models, fixtures, and tooling designs built with SolidWorks and exported as STL files.
 
 🤖 [`RoboticArm`](https://github.com/AkashAyyagari/AkashLab-RoboticArm)   
