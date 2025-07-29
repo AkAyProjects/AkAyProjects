@@ -1,5 +1,4 @@
-👋 Hi there!
-I'm Akash Ayyagari — a passionate engineer with a strong background in mechatronics, machine learning, AI, and industrial automation. I enjoy building intelligent systems that bridge the gap between hardware and software, especially in robotics and smart manufacturing.
+👋 Hi there! I'm Akash Ayyagari — a passionate engineer with a Master's in Applied Science and a strong background in mechatronics, machine learning, AI, and industrial automation. I enjoy building intelligent systems that bridge the gap between hardware and software, especially in robotics and smart manufacturing.
 
 ### 🚀 Tech Stack
 
