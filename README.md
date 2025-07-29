@@ -36,7 +36,7 @@
 🔧 [`DesignSolutions-Portfolio`](https://github.com/AkAyProjects/DesignSolutions-Portfolio) 
 A collection of professional CAD models, fixtures, and tooling designs built with SolidWorks and exported as STL files.
 
-🤖 [`RoboticArm`](https://github.com/AkAyProjects/RoboticArm/tree/main))   
+🤖 [`RoboticArm`]((https://github.com/AkAyProjects/RoboticArm))   
 Custom 6-axis robotic arm controlled via ESP32 and integrated with ROS2 and a web dashboard.
 
 📘 [`MastersResearch`](https://github.com/AkashAyyagari/AkashLab-MastersResearch)  
