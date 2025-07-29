@@ -36,10 +36,10 @@
 🔧 [`DesignSolutions-Portfolio`](https://github.com/AkashAyyagari/DesignSolutions-Portfolio)  
 A collection of professional CAD models, fixtures, and tooling designs built with SolidWorks and exported as STL files.
 
-🤖 [`AkashLab-RoboticArm`](https://github.com/AkashAyyagari/AkashLab-RoboticArm) *(Coming soon)*  
+🤖 [`AkashLab-RoboticArm`](https://github.com/AkashAyyagari/AkashLab-RoboticArm)   
 Custom 6-axis robotic arm controlled via ESP32 and integrated with ROS2 and a web dashboard.
 
-📘 [`AkashLab-MastersResearch`](https://github.com/AkashAyyagari/AkashLab-MastersResearch) *(Coming soon)*  
+📘 [`AkashLab-MastersResearch`](https://github.com/AkashAyyagari/AkashLab-MastersResearch)  
 Deep learning + control systems applied to autonomous vehicle motion planning, based on my MASc thesis.
 
 ---
